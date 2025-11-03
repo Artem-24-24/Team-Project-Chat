@@ -5,7 +5,7 @@ namespace Team_Project_Chat
         public Form1()
         {
             InitializeComponent();
-            this.Text = "Team Project Chat Application";
+            this.Text = "Командний проект: Чат клієнта";
         }
     }
 }
