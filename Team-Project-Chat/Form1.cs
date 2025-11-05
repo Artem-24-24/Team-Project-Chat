@@ -7,9 +7,5 @@ namespace Team_Project_Chat
             InitializeComponent();
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show("alallala");
-        }
     }
 }
