@@ -73,6 +73,7 @@
             btnSend.TabIndex = 3;
             btnSend.Text = "Send";
             btnSend.UseVisualStyleBackColor = true;
+            btnSend.Click += btnSend_Click;
             // 
             // txtMessage
             // 
@@ -86,7 +87,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(592, 593);
+            ClientSize = new Size(600, 598);
             Controls.Add(txtMessage);
             Controls.Add(btnSend);
             Controls.Add(listBox1);
@@ -94,6 +95,7 @@
             Controls.Add(label1);
             Name = "Form1";
             Text = "Form1";
+            FormClosed += Form1_FormClosed;
             ResumeLayout(false);
             PerformLayout();
         }
