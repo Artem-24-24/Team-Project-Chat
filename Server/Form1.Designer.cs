@@ -92,9 +92,13 @@
             label2.Font = new Font("Segoe UI", 12F);
             label2.Location = new Point(270, 153);
             label2.Name = "label2";
-            label2.Size = new Size(92, 28);
+
+            label2.Size = new Size(142, 21);
+
+            //label2.Size = new Size(92, 28);
+
             label2.TabIndex = 4;
-            label2.Text = "Server IP:";
+            label2.Text = "Server IP: 127.0.0.1";
             // 
             // lblClients
             // 
@@ -116,6 +120,7 @@
             btnStart.TabIndex = 6;
             btnStart.Text = "Start";
             btnStart.UseVisualStyleBackColor = true;
+            btnStart.Click += btnStart_Click;
             // 
             // btnStop
             // 
@@ -127,6 +132,7 @@
             btnStop.TabIndex = 7;
             btnStop.Text = "Stop";
             btnStop.UseVisualStyleBackColor = true;
+            btnStop.Click += btnStop_Click;
             // 
             // btnClearLog
             // 

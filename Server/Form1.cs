@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,35 +13,17 @@ using System.Windows.Forms;
 
 namespace Server
 {
-    public class UserModel
-    {
-        public int Id { get; set; }
-        public string Username { get; set; }
-        public string PasswordHash { get; set; }
-    }
-
-    public class MessageModel
-    {
-        public int Id { get; set; }
-        public int SenderId { get; set; }
-        public int ReceiverId { get; set; }
-        public string Content { get; set; }
-        public string Timestamp { get; set; }
-    }
-
-    public class LocalDatabase
-    {
-        public List<UserModel> Users { get; set; } = new List<UserModel>();
-        public List<MessageModel> Messages { get; set; } = new List<MessageModel>();
-        public int NextUserId => Users.Any() ? Users.Max(u => u.Id) + 1 : 1;
-        public int NextMessageId => Messages.Any() ? Messages.Max(m => m.Id) + 1 : 1;
-    }
-
+   
     public partial class Form1 : Form
     {
+        private TcpListener listener;             // Об’єкт, який слухає підключення клієнтів
+        private Thread listenThread;              // Потік, який приймає клієнтів
+        private List<TcpClient> clients = new();  // Список усіх підключених клієнтів
+        private bool running = false;             // Статус роботи сервера
         private LocalDatabase _db = new LocalDatabase();
         private const string DbFilePath = "local_db.json";
         private int _currentUserId = -1;
+
 
         public Form1()
         {
@@ -80,7 +67,8 @@ namespace Server
             Log("����� ��������� (������� ������).");
         }
 
-        private async void BtnStart_Click(object sender, EventArgs e)
+
+        private async void BtnStart_Click(object sender, EventArgs e) // Vlad
         {
             if (_currentUserId != -1)
             {
@@ -291,7 +279,7 @@ namespace Server
                 Log($"����������� �� {msg.SenderId} � {msg.Timestamp}: {msg.Content}");
             }
 
-            Log("���� API ���������");
+            //Log("���� API ���������");
 
             return Task.CompletedTask;
         }
@@ -301,5 +289,154 @@ namespace Server
         private void txtPort_TextChanged(object sender, EventArgs e)
         {
         }
+
+        //Кнопка "Start" — запуск сервера
+        private void btnStart_Click(object sender, EventArgs e)
+        {
+            if (!running)
+            {
+                // Створюємо TCP-слухача на порту 9000
+                listener = new TcpListener(IPAddress.Any, 9000);
+                listener.Start();
+                running = true;
+
+                // Запускаємо потік для прослуховування підключень
+                listenThread = new Thread(ListenForClients);
+                listenThread.Start();
+
+                LogChat("Server started, Port: 9000");
+            }
+        }
+
+        // Метод, який постійно чекає підключення нових клієнтів
+        private void ListenForClients()
+        {
+            try
+            {
+                while (running)
+                {
+                    // Приймаємо нове підключення
+                    TcpClient client = listener.AcceptTcpClient();
+                    clients.Add(client);
+                    UpdateClientCount();
+
+                    // Створюємо новий потік для роботи з цим клієнтом
+                    Thread clientThread = new Thread(HandleClient);
+                    clientThread.Start(client);
+
+                    LogChat("New client connected");
+                }
+            }
+            catch (SocketException ex)
+            {
+                LogChat($"Server was stopped: {ex.Message}");
+            }
+        }
+
+        // Обробка повідомлень від конкретного клієнта
+        private void HandleClient(object obj)
+        {
+            TcpClient client = (TcpClient)obj;
+            NetworkStream stream = client.GetStream();
+            byte[] buffer = new byte[1024];
+
+            while (running)
+            {
+                try
+                {
+                    // Зчитуємо повідомлення
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead == 0) break;
+
+                    string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    LogChat($"<Message>: {msg}");
+
+                    // Відправляємо повідомлення іншим клієнтам
+                    Broadcast(msg, client);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+
+            // Якщо клієнт відключився
+            clients.Remove(client);
+            UpdateClientCount();
+            //Log("Client disconnected");
+        }
+
+        // Надсилання повідомлення всім підключеним клієнтам (крім відправника)
+        private void Broadcast(string msg, TcpClient sender)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(msg);
+
+            foreach (var client in clients)
+            {
+                if (client != sender)
+                {
+                    try
+                    {
+                        client.GetStream().Write(data, 0, data.Length);
+                    }
+                    catch
+                    {
+                        // Ігноруємо, якщо клієнт уже розірвав з’єднання
+                    }
+                }
+            }
+        }
+
+        // Додає запис у список логів на формі
+        private void LogChat(string text)
+        {
+            if (InvokeRequired)
+                Invoke((MethodInvoker)(() => listBoxLog.Items.Add(text)));
+            else
+                listBoxLog.Items.Add(text);
+        }
+
+        // Оновлює лічильник підключених клієнтів на формі
+        private void UpdateClientCount()
+        {
+            if (InvokeRequired)
+                Invoke((MethodInvoker)(() => lblClients.Text = $"Clients: {clients.Count}"));
+            else
+                lblClients.Text = $"Clietns: {clients.Count}";
+        }
+
+        // Кнопка "Stop" — зупинка сервера
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            running = false;
+            listener.Stop();
+            clients.Clear();
+            Log("Server was stopped");
+            UpdateClientCount();
+        }
+    }
+
+    public class UserModel
+    {
+        public int Id { get; set; }
+        public string Username { get; set; }
+        public string PasswordHash { get; set; }
+    }
+
+    public class MessageModel
+    {
+        public int Id { get; set; }
+        public int SenderId { get; set; }
+        public int ReceiverId { get; set; }
+        public string Content { get; set; }
+        public string Timestamp { get; set; }
+    }
+
+    public class LocalDatabase
+    {
+        public List<UserModel> Users { get; set; } = new List<UserModel>();
+        public List<MessageModel> Messages { get; set; } = new List<MessageModel>();
+        public int NextUserId => Users.Any() ? Users.Max(u => u.Id) + 1 : 1;
+        public int NextMessageId => Messages.Any() ? Messages.Max(m => m.Id) + 1 : 1;
     }
 }
