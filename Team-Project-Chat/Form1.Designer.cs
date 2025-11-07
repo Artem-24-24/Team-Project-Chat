@@ -39,9 +39,9 @@
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 20F);
-            label1.Location = new Point(81, 31);
+            label1.Location = new Point(93, 41);
             label1.Name = "label1";
-            label1.Size = new Size(244, 37);
+            label1.Size = new Size(306, 46);
             label1.TabIndex = 0;
             label1.Text = "CHAT TCP - CLIENT";
             // 
@@ -49,27 +49,28 @@
             // 
             lblLoggedIn.AutoSize = true;
             lblLoggedIn.Font = new Font("Segoe UI", 15F);
-            lblLoggedIn.Location = new Point(331, 38);
+            lblLoggedIn.Location = new Point(378, 51);
             lblLoggedIn.Name = "lblLoggedIn";
-            lblLoggedIn.Size = new Size(192, 28);
+            lblLoggedIn.Size = new Size(243, 35);
             lblLoggedIn.TabIndex = 1;
             lblLoggedIn.Text = "Logged in: Unknown";
             // 
             // listBox1
             // 
             listBox1.FormattingEnabled = true;
-            listBox1.ItemHeight = 15;
-            listBox1.Location = new Point(12, 71);
+            listBox1.Location = new Point(14, 95);
+            listBox1.Margin = new Padding(3, 4, 3, 4);
             listBox1.Name = "listBox1";
-            listBox1.Size = new Size(576, 454);
+            listBox1.Size = new Size(658, 604);
             listBox1.TabIndex = 2;
             // 
             // btnSend
             // 
             btnSend.Font = new Font("Segoe UI", 15F);
-            btnSend.Location = new Point(448, 531);
+            btnSend.Location = new Point(512, 708);
+            btnSend.Margin = new Padding(3, 4, 3, 4);
             btnSend.Name = "btnSend";
-            btnSend.Size = new Size(140, 57);
+            btnSend.Size = new Size(160, 76);
             btnSend.TabIndex = 3;
             btnSend.Text = "Send";
             btnSend.UseVisualStyleBackColor = true;
@@ -77,25 +78,28 @@
             // 
             // txtMessage
             // 
-            txtMessage.Location = new Point(12, 531);
+            txtMessage.Location = new Point(14, 708);
+            txtMessage.Margin = new Padding(3, 4, 3, 4);
             txtMessage.Multiline = true;
             txtMessage.Name = "txtMessage";
-            txtMessage.Size = new Size(430, 57);
+            txtMessage.Size = new Size(491, 75);
             txtMessage.TabIndex = 4;
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(600, 598);
+            ClientSize = new Size(686, 797);
             Controls.Add(txtMessage);
             Controls.Add(btnSend);
             Controls.Add(listBox1);
             Controls.Add(lblLoggedIn);
             Controls.Add(label1);
+            Margin = new Padding(3, 4, 3, 4);
             Name = "Form1";
             Text = "Form1";
             FormClosed += Form1_FormClosed;
+            Load += Form1_Load;
             ResumeLayout(false);
             PerformLayout();
         }

@@ -109,5 +109,21 @@ namespace Team_Project_Chat
         {
             // certain user has left the chat
         }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            From_Login loginForm = new From_Login();
+            var result = loginForm.ShowDialog();
+
+            if (result == DialogResult.OK)
+            {
+                this.SetUsername(loginForm.tb_login.Text);
+                this.Text = "Chat Client - " + loginForm.tb_login.Text;
+            }
+            else
+            {
+                this.Close();
+            }
+        }
     }
 }
