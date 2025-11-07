@@ -51,9 +51,9 @@
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 20F);
-            label1.Location = new Point(59, 9);
+            label1.Location = new Point(67, 12);
             label1.Name = "label1";
-            label1.Size = new Size(441, 37);
+            label1.Size = new Size(555, 46);
             label1.TabIndex = 0;
             label1.Text = "CHAT TCP - SERVER (ARMIN PANEL)";
             // 
@@ -61,9 +61,9 @@
             // 
             lblStatus.AutoSize = true;
             lblStatus.Font = new Font("Segoe UI", 12F);
-            lblStatus.Location = new Point(12, 80);
+            lblStatus.Location = new Point(14, 107);
             lblStatus.Name = "lblStatus";
-            lblStatus.Size = new Size(103, 21);
+            lblStatus.Size = new Size(127, 28);
             lblStatus.TabIndex = 1;
             lblStatus.Text = "Server status:";
             // 
@@ -71,26 +71,28 @@
             // 
             lblPort.AutoSize = true;
             lblPort.Font = new Font("Segoe UI", 12F);
-            lblPort.Location = new Point(12, 111);
+            lblPort.Location = new Point(14, 148);
             lblPort.Name = "lblPort";
-            lblPort.Size = new Size(91, 21);
+            lblPort.Size = new Size(114, 28);
             lblPort.TabIndex = 2;
             lblPort.Text = "Server port:";
             // 
             // txtPort
             // 
-            txtPort.Location = new Point(109, 109);
+            txtPort.Location = new Point(125, 145);
+            txtPort.Margin = new Padding(3, 4, 3, 4);
             txtPort.Name = "txtPort";
-            txtPort.Size = new Size(53, 23);
+            txtPort.Size = new Size(60, 27);
             txtPort.TabIndex = 3;
+            txtPort.TextChanged += txtPort_TextChanged;
             // 
             // label2
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI", 12F);
-            label2.Location = new Point(236, 115);
+            label2.Location = new Point(270, 153);
             label2.Name = "label2";
-            label2.Size = new Size(75, 21);
+            label2.Size = new Size(92, 28);
             label2.TabIndex = 4;
             label2.Text = "Server IP:";
             // 
@@ -98,18 +100,19 @@
             // 
             lblClients.AutoSize = true;
             lblClients.Font = new Font("Segoe UI", 12F);
-            lblClients.Location = new Point(12, 144);
+            lblClients.Location = new Point(14, 192);
             lblClients.Name = "lblClients";
-            lblClients.Size = new Size(135, 21);
+            lblClients.Size = new Size(170, 28);
             lblClients.TabIndex = 5;
             lblClients.Text = "Clients connected:";
             // 
             // btnStart
             // 
             btnStart.Font = new Font("Segoe UI", 12F);
-            btnStart.Location = new Point(12, 213);
+            btnStart.Location = new Point(14, 284);
+            btnStart.Margin = new Padding(3, 4, 3, 4);
             btnStart.Name = "btnStart";
-            btnStart.Size = new Size(178, 59);
+            btnStart.Size = new Size(203, 79);
             btnStart.TabIndex = 6;
             btnStart.Text = "Start";
             btnStart.UseVisualStyleBackColor = true;
@@ -117,9 +120,10 @@
             // btnStop
             // 
             btnStop.Font = new Font("Segoe UI", 12F);
-            btnStop.Location = new Point(196, 213);
+            btnStop.Location = new Point(224, 284);
+            btnStop.Margin = new Padding(3, 4, 3, 4);
             btnStop.Name = "btnStop";
-            btnStop.Size = new Size(178, 59);
+            btnStop.Size = new Size(203, 79);
             btnStop.TabIndex = 7;
             btnStop.Text = "Stop";
             btnStop.UseVisualStyleBackColor = true;
@@ -127,9 +131,10 @@
             // btnClearLog
             // 
             btnClearLog.Font = new Font("Segoe UI", 12F);
-            btnClearLog.Location = new Point(378, 213);
+            btnClearLog.Location = new Point(432, 284);
+            btnClearLog.Margin = new Padding(3, 4, 3, 4);
             btnClearLog.Name = "btnClearLog";
-            btnClearLog.Size = new Size(178, 59);
+            btnClearLog.Size = new Size(203, 79);
             btnClearLog.TabIndex = 8;
             btnClearLog.Text = "Clear log";
             btnClearLog.UseVisualStyleBackColor = true;
@@ -138,45 +143,48 @@
             // 
             label3.AutoSize = true;
             label3.Font = new Font("Segoe UI", 20F);
-            label3.Location = new Point(243, 284);
+            label3.Location = new Point(278, 379);
             label3.Name = "label3";
-            label3.Size = new Size(68, 37);
+            label3.Size = new Size(84, 46);
             label3.TabIndex = 9;
             label3.Text = "LOG";
             // 
             // listBoxLog
             // 
             listBoxLog.FormattingEnabled = true;
-            listBoxLog.ItemHeight = 15;
-            listBoxLog.Location = new Point(12, 334);
+            listBoxLog.Location = new Point(14, 445);
+            listBoxLog.Margin = new Padding(3, 4, 3, 4);
             listBoxLog.Name = "listBoxLog";
-            listBoxLog.Size = new Size(544, 199);
+            listBoxLog.Size = new Size(621, 264);
             listBoxLog.TabIndex = 10;
             // 
             // label4
             // 
             label4.AutoSize = true;
             label4.Font = new Font("Segoe UI", 12F);
-            label4.Location = new Point(12, 552);
+            label4.Location = new Point(14, 736);
             label4.Name = "label4";
-            label4.Size = new Size(138, 21);
+            label4.Size = new Size(173, 28);
             label4.TabIndex = 11;
             label4.Text = "Connected Clients:";
             // 
             // dataGridClients
             // 
             dataGridClients.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridClients.Location = new Point(12, 576);
+            dataGridClients.Location = new Point(14, 768);
+            dataGridClients.Margin = new Padding(3, 4, 3, 4);
             dataGridClients.Name = "dataGridClients";
-            dataGridClients.Size = new Size(544, 150);
+            dataGridClients.RowHeadersWidth = 51;
+            dataGridClients.Size = new Size(622, 200);
             dataGridClients.TabIndex = 12;
             // 
             // btnRefresh
             // 
             btnRefresh.Font = new Font("Segoe UI", 12F);
-            btnRefresh.Location = new Point(378, 732);
+            btnRefresh.Location = new Point(432, 976);
+            btnRefresh.Margin = new Padding(3, 4, 3, 4);
             btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(178, 59);
+            btnRefresh.Size = new Size(203, 79);
             btnRefresh.TabIndex = 15;
             btnRefresh.Text = "Refresh";
             btnRefresh.UseVisualStyleBackColor = true;
@@ -184,9 +192,10 @@
             // btnBan
             // 
             btnBan.Font = new Font("Segoe UI", 12F);
-            btnBan.Location = new Point(196, 732);
+            btnBan.Location = new Point(224, 976);
+            btnBan.Margin = new Padding(3, 4, 3, 4);
             btnBan.Name = "btnBan";
-            btnBan.Size = new Size(178, 59);
+            btnBan.Size = new Size(203, 79);
             btnBan.TabIndex = 14;
             btnBan.Text = "Ban";
             btnBan.UseVisualStyleBackColor = true;
@@ -194,18 +203,19 @@
             // btnKick
             // 
             btnKick.Font = new Font("Segoe UI", 12F);
-            btnKick.Location = new Point(12, 732);
+            btnKick.Location = new Point(14, 976);
+            btnKick.Margin = new Padding(3, 4, 3, 4);
             btnKick.Name = "btnKick";
-            btnKick.Size = new Size(178, 59);
+            btnKick.Size = new Size(203, 79);
             btnKick.TabIndex = 13;
             btnKick.Text = "Kick";
             btnKick.UseVisualStyleBackColor = true;
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(568, 798);
+            ClientSize = new Size(649, 1055);
             Controls.Add(btnRefresh);
             Controls.Add(btnBan);
             Controls.Add(btnKick);
@@ -222,6 +232,7 @@
             Controls.Add(lblPort);
             Controls.Add(lblStatus);
             Controls.Add(label1);
+            Margin = new Padding(3, 4, 3, 4);
             Name = "Form1";
             Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)dataGridClients).EndInit();
