@@ -67,7 +67,8 @@ namespace Server
             Log("Сессія завершена (имітація виходу).");
         }
 
-        private async void BtnStart_Click(object sender, EventArgs e)
+
+        private async void BtnStart_Click(object sender, EventArgs e) // Vlad
         {
             if (_currentUserId != -1)
             {
