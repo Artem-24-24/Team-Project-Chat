@@ -14,6 +14,9 @@ namespace Team_Project_Chat
         private Thread receiveThread;     // ���� ��� ��������� ����������
         private string username = "Unknown"; // ��� �����������
         private int userId = -1;          // ID користувача
+        private string password = "";     // Password for authentication
+        private string authType = "login"; // Auth type (login or register)
+        private bool isAuthenticated = false; // Authentication status
 
 
         // onClose event
@@ -39,17 +42,49 @@ namespace Team_Project_Chat
                 receiveThread.Start();
 
                 AddMessage("Connected to the server");
+                
+                // Re-authenticate with the server for this persistent connection
+                if (userId > 0)
+                {
+                    SendAuthenticationForChat();
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                AddMessage("Unable to connect to the server");
+                AddMessage($"Unable to connect to the server: {ex.Message}");
+            }
+        }
+
+        private void SendAuthenticationForChat()
+        {
+            try
+            {
+                // Send authentication request to server
+                var authMessage = new ProtocolMessage
+                {
+                    Type = authType,
+                    Username = username,
+                    Password = password
+                };
+
+                string json = JsonSerializer.Serialize(authMessage);
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                stream.Write(data, 0, data.Length);
+
+                AddMessage($"Authenticating as {username}...");
+
+                // The response will be received in ReceiveMessages thread
+            }
+            catch (Exception ex)
+            {
+                AddMessage($"Authentication error: {ex.Message}");
             }
         }
 
         // ��������� ���������� �� �������
         private void ReceiveMessages()
         {
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096];
             int bytesRead;
 
             while (true)
@@ -60,7 +95,39 @@ namespace Team_Project_Chat
                     if (bytesRead == 0) break;
 
                     string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    AddMessage(msg);
+                    
+                    // Try to parse as protocol message
+                    try
+                    {
+                        var protocolMsg = JsonSerializer.Deserialize<ProtocolMessage>(msg);
+                        
+                        if (protocolMsg != null && protocolMsg.Type == "response")
+                        {
+                            // This is an authentication response
+                            if (protocolMsg.Success)
+                            {
+                                userId = protocolMsg.UserId;
+                                isAuthenticated = true;
+                                AddMessage($"✓ Authentication successful! User ID: {userId}");
+                                AddMessage("You can now send messages.");
+                            }
+                            else
+                            {
+                                AddMessage($"✗ Authentication failed: {protocolMsg.ErrorMessage}");
+                                AddMessage("Please restart and try again.");
+                            }
+                        }
+                        else
+                        {
+                            // Not a protocol message or different type, treat as chat
+                            AddMessage(msg);
+                        }
+                    }
+                    catch
+                    {
+                        // If not JSON, treat as regular chat message
+                        AddMessage(msg);
+                    }
                 }
                 catch
                 {
@@ -83,6 +150,13 @@ namespace Team_Project_Chat
         private void btnSend_Click(object sender, EventArgs e)
         {
             if (stream == null) return;
+            
+            if (!isAuthenticated)
+            {
+                AddMessage("Please wait for authentication to complete.");
+                return;
+            }
+            
             string text = txtMessage.Text.Trim();
             if (text == "") return;
 
@@ -135,9 +209,10 @@ namespace Team_Project_Chat
             if (result == DialogResult.OK)
             {
                 this.username = loginForm.Username;
-                this.userId = loginForm.UserId;
-                this.SetUsername(loginForm.Username);
+                this.password = loginForm.Password;
+                this.authType = loginForm.AuthType;
                 this.Text = "Chat Client - " + loginForm.Username;
+                lblLoggedIn.Text = $"User: {loginForm.Username}";
             }
             else
             {
