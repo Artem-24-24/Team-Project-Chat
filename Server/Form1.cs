@@ -1,57 +1,50 @@
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using Protocol;
 
 namespace Server
 {
-   
     public partial class Form1 : Form
     {
-        private TcpListener listener;             // РћР±вЂ™С”РєС‚, СЏРєРёР№ СЃР»СѓС…Р°С” РїС–РґРєР»СЋС‡РµРЅРЅСЏ РєР»С–С”РЅС‚С–РІ
-        private Thread listenThread;              // РџРѕС‚С–Рє, СЏРєРёР№ РїСЂРёР№РјР°С” РєР»С–С”РЅС‚С–РІ
-        private List<TcpClient> clients = new();  // РЎРїРёСЃРѕРє СѓСЃС–С… РїС–РґРєР»СЋС‡РµРЅРёС… РєР»С–С”РЅС‚С–РІ
-        private bool running = false;             // РЎС‚Р°С‚СѓСЃ СЂРѕР±РѕС‚Рё СЃРµСЂРІРµСЂР°
+        private TcpListener listener;
+        private Thread listenThread;
+        private List<TcpClient> clients = new();
+        private Dictionary<TcpClient, int> clientSessions = new Dictionary<TcpClient, int>();
+        private bool running = false;
         private LocalDatabase _db = new LocalDatabase();
-        private const string DbFilePath = "local_db.json";
+        private const string DbFilePath = "database.json";
         private int _currentUserId = -1;
-
+        private Dictionary<string, List<Protocol.ChatMessage>> messageHistory = new Dictionary<string, List<Protocol.ChatMessage>>();
 
         public Form1()
         {
             InitializeComponent();
-
             LoadDatabase();
 
-            lblStatus.Text = "Status: Disconnected";
-            label2.Text = $"Local DB: {DbFilePath}";
-            txtPort.Text = "Локально";
+            lblStatus.Text = "Статус: Зупинено";
+            label2.Text = $"Локальна БД: database.json";
+            txtPort.Text = "9000";
 
-            btnStart.Click += BtnStart_Click;
+            btnStart.Enabled = true;
+            btnStop.Enabled = false;
+
+            btnStart.Click += btnStart_Click;
             btnClearLog.Click += BtnClearLog_Click;
-            btnStop.Click += BtnStop_Click;
+            btnStop.Click += btnStop_Click;
             btnRefresh.Click += BtnRefresh_Click;
         }
-
-        #region UI Logic and Helpers
 
         private void Log(string message)
         {
             if (listBoxLog.InvokeRequired)
             {
-                listBoxLog.Invoke(new Action(() => listBoxLog.Items.Add($"[{DateTime.Now.ToString("HH:mm:ss dd.MM.yyyy")}] {message}")));
+                listBoxLog.Invoke(new Action(() => listBoxLog.Items.Add($"[{DateTime.Now:HH:mm:ss}] {message}")));
             }
             else
             {
-                listBoxLog.Items.Add($"[{DateTime.Now.ToString("HH:mm:ss dd.MM.yyyy")}] {message}");
+                listBoxLog.Items.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
             }
         }
 
@@ -60,63 +53,11 @@ namespace Server
             listBoxLog.Items.Clear();
         }
 
-        private void BtnStop_Click(object sender, EventArgs e)
-        {
-            _currentUserId = -1;
-            lblStatus.Text = "Status: Disconnected";
-            Log("Сессія завершена (имітація виходу).");
-        }
-
-
-        private async void BtnStart_Click(object sender, EventArgs e) // Vlad
-        {
-            if (_currentUserId != -1)
-            {
-                Log("Вже авторизований! Вийдіть перед повторним входом!");
-                return;
-            }
-
-            var username = "testuser";
-            var password = "password123";
-
-            Log($"Спроба логіну для {username}...");
-
-            if (Login(username, password))
-            {
-                lblStatus.Text = "Status: Logged In";
-                Log($"Успішний вхід. User ID: {_currentUserId}");
-                await TestChatEndpoints();
-                return;
-            }
-
-            Log("Не вийшло залогінитися. Спроба реєстраціЇ...");
-            if (Register(username, password))
-            {
-                Login(username, password);
-                lblStatus.Text = "Status: Registered & Logged In";
-                Log($"Успішна реєстрація і вхід. User ID: {_currentUserId}");
-                await TestChatEndpoints();
-                return;
-            }
-
-            lblStatus.Text = "Status: Failed to Connect/Login";
-            Log("Помилка: Не вдалося ввійти або зареєструватися.");
-        }
-
         private void BtnRefresh_Click(object sender, EventArgs e)
         {
-            if (_currentUserId == -1)
-            {
-                Log("Спочатку авторизуйтесь.");
-                return;
-            }
-
+            UpdateClientGrid();
             DisplayAllUsers();
         }
-
-        #endregion
-
-        #region Database and Persistence
 
         private void LoadDatabase()
         {
@@ -126,19 +67,57 @@ namespace Server
                 {
                     string jsonString = File.ReadAllText(DbFilePath);
                     _db = JsonSerializer.Deserialize<LocalDatabase>(jsonString) ?? new LocalDatabase();
-                    Log("База даних успішно завантажена!");
+                    Log($"Базу даних завантажено успішно! Знайдено користувачів: {_db.Users.Count}");
+
+                    foreach (var user in _db.Users)
+                    {
+                        Log($"Завантажено користувача: ID={user.Id}, Username={user.Username}");
+                    }
+
+                    LoadMessageHistoryFromDatabase();
                 }
                 catch (Exception ex)
                 {
-                    Log($"Помилка завантаження БД: {ex.Message}. Використовуєтся пуста БД!");
+                    Log($"Помилка завантаження БД: {ex.Message}. Використовується порожня БД!");
                     _db = new LocalDatabase();
                 }
             }
             else
             {
-                Log("Файл БД не знайдений. Створюєтся нова база даних.");
+                Log("Файл БД не знайдено. Створюється нова база даних.");
+                SaveDatabase();
             }
             UpdateClientGrid();
+        }
+
+        private void LoadMessageHistoryFromDatabase()
+        {
+            messageHistory.Clear();
+
+            foreach (var message in _db.Messages)
+            {
+                var senderUser = _db.Users.FirstOrDefault(u => u.Id == message.SenderId);
+                var receiverUser = _db.Users.FirstOrDefault(u => u.Id == message.ReceiverId);
+
+                if (senderUser != null && receiverUser != null)
+                {
+                    var chatMessage = new Protocol.ChatMessage
+                    {
+                        Username = senderUser.Username,
+                        Content = message.Content,
+                        Timestamp = message.Timestamp,
+                        Recipient = receiverUser.Username
+                    };
+
+                    string key = GetMessageHistoryKey(senderUser.Username, receiverUser.Username);
+                    if (!messageHistory.ContainsKey(key))
+                        messageHistory[key] = new List<Protocol.ChatMessage>();
+
+                    messageHistory[key].Add(chatMessage);
+                }
+            }
+
+            Log($"Завантажено {_db.Messages.Count} повідомлень з бази даних");
         }
 
         private void SaveDatabase()
@@ -152,6 +131,7 @@ namespace Server
                 };
                 string jsonString = JsonSerializer.Serialize(_db, options);
                 File.WriteAllText(DbFilePath, jsonString);
+                Log($"Базу даних збережено успішно. Користувачів: {_db.Users.Count}, Повідомлень: {_db.Messages.Count}");
             }
             catch (Exception ex)
             {
@@ -161,259 +141,602 @@ namespace Server
 
         private void UpdateClientGrid()
         {
-            dataGridClients.DataSource = null;
-            dataGridClients.DataSource = _db.Users.Select(u => new
+            if (dataGridClients.InvokeRequired)
             {
-                u.Id,
-                u.Username,
-                Status = u.Id == _currentUserId ? "Me (Logged In)" : "Available"
-            }).ToList();
-            lblClients.Text = $"Clients connected: {_db.Users.Count}";
+                dataGridClients.Invoke(new Action(() =>
+                {
+                    dataGridClients.DataSource = null;
+                    dataGridClients.DataSource = _db.Users.Select(u => new
+                    {
+                        u.Id,
+                        u.Username,
+                        Status = clientSessions.Values.Contains(u.Id) ? "Онлайн" : "Офлайн"
+                    }).ToList();
+                }));
+            }
+            else
+            {
+                dataGridClients.DataSource = null;
+                dataGridClients.DataSource = _db.Users.Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    Status = clientSessions.Values.Contains(u.Id) ? "Онлайн" : "Офлайн"
+                }).ToList();
+            }
+
+            UpdateClientCount();
+        }
+
+        private void UpdateClientCount()
+        {
+            if (InvokeRequired)
+                Invoke((MethodInvoker)(() => lblClients.Text = $"Клієнти: {clientSessions.Count}"));
+            else
+                lblClients.Text = $"Клієнти: {clientSessions.Count}";
         }
 
         private void DisplayAllUsers()
         {
-            Log($"Список користувачів ({_db.Users.Count})");
+            Log($"Список користувачів ({_db.Users.Count}):");
             foreach (var user in _db.Users)
             {
-                Log($"ID: {user.Id}, Username: {user.Username}");
+                string status = clientSessions.Values.Contains(user.Id) ? "Онлайн" : "Офлайн";
+                Log($"ID: {user.Id}, Username: {user.Username}, Статус: {status}");
             }
-            UpdateClientGrid();
         }
 
-        #endregion
-
-        #region API Implementation
-
-        private bool Register(string username, string password)
-        {
-            if (_db.Users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
-            {
-                Log("Помилка реєстрації: Користувач вже існує.");
-                return false;
-            }
-
-            var newUser = new UserModel
-            {
-                Id = _db.NextUserId,
-                Username = username,
-                PasswordHash = password
-            };
-
-            _db.Users.Add(newUser);
-            SaveDatabase();
-            return true;
-        }
-
-        private bool Login(string username, string password)
-        {
-            var user = _db.Users.FirstOrDefault(u =>
-                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) &&
-                u.PasswordHash == password);
-
-            if (user != null)
-            {
-                _currentUserId = user.Id;
-                return true;
-            }
-
-            return false;
-        }
-
-        private List<MessageModel> GetMessageHistory(int contactId)
-        {
-            if (_currentUserId == -1) return new List<MessageModel>();
-
-            var history = _db.Messages
-                .Where(m => (m.SenderId == _currentUserId && m.ReceiverId == contactId) ||
-                            (m.SenderId == contactId && m.ReceiverId == _currentUserId))
-                .OrderBy(m => DateTime.ParseExact(m.Timestamp, "HH:mm:ss dd.MM.yyyy", null))
-                .ToList();
-
-            return history;
-        }
-
-        private MessageModel SendMessage(int receiverId, string content)
-        {
-            if (_currentUserId == -1)
-            {
-                Log("Помилка: Не можна відправити повідомлення без авторизації!");
-                return null;
-            }
-
-            var newMessage = new MessageModel
-            {
-                Id = _db.NextMessageId,
-                SenderId = _currentUserId,
-                ReceiverId = receiverId,
-                Content = content,
-                Timestamp = DateTime.Now.ToString("HH:mm:ss dd.MM.yyyy")
-            };
-
-            _db.Messages.Add(newMessage);
-            SaveDatabase();
-            return newMessage;
-        }
-
-        #endregion
-
-        #region Test Endpoints
-
-        private Task TestChatEndpoints()
-        {
-            if (_db.Users.FirstOrDefault(u => u.Id == 2) == null)
-            {
-                Register("contactuser", "pass2");
-            }
-
-            int contactId = 2;
-
-            Log($"Тест API: Відправка повідомлення ID {contactId}");
-            SendMessage(contactId, "Привіт, це тестове повідомлення із Form1!");
-
-            Log($"Тест API: Получение истории с ID {contactId}");
-            var history = GetMessageHistory(contactId);
-
-            foreach (var msg in history)
-            {
-                Log($"Повідомлення від {msg.SenderId} в {msg.Timestamp}: {msg.Content}");
-            }
-
-            //Log("Тест API завершено");
-
-            return Task.CompletedTask;
-        }
-
-        #endregion
-
-        private void txtPort_TextChanged(object sender, EventArgs e)
-        {
-        }
-
-        //РљРЅРѕРїРєР° "Start" вЂ” Р·Р°РїСѓСЃРє СЃРµСЂРІРµСЂР°
         private void btnStart_Click(object sender, EventArgs e)
         {
             if (!running)
             {
-                // РЎС‚РІРѕСЂСЋС”РјРѕ TCP-СЃР»СѓС…Р°С‡Р° РЅР° РїРѕСЂС‚Сѓ 9000
-                listener = new TcpListener(IPAddress.Any, 9000);
-                listener.Start();
-                running = true;
+                try
+                {
+                    int port = int.Parse(txtPort.Text.Trim());
+                    listener = new TcpListener(IPAddress.Any, port);
+                    listener.Start();
+                    running = true;
 
-                // Р—Р°РїСѓСЃРєР°С”РјРѕ РїРѕС‚С–Рє РґР»СЏ РїСЂРѕСЃР»СѓС…РѕРІСѓРІР°РЅРЅСЏ РїС–РґРєР»СЋС‡РµРЅСЊ
-                listenThread = new Thread(ListenForClients);
-                listenThread.Start();
+                    listenThread = new Thread(ListenForClients);
+                    listenThread.IsBackground = true;
+                    listenThread.Start();
 
-                LogChat("Server started, Port: 9000");
+                    Log($"Сервер запущено на порту {port}");
+                    lblStatus.Text = "Статус: Запущено";
+
+                    btnStart.Enabled = false;
+                    btnStop.Enabled = true;
+                    txtPort.Enabled = false;
+                }
+                catch (Exception ex)
+                {
+                    Log($"Помилка запуску сервера: {ex.Message}");
+                    running = false;
+                    btnStart.Enabled = true;
+                    btnStop.Enabled = false;
+                }
             }
         }
 
-        // РњРµС‚РѕРґ, СЏРєРёР№ РїРѕСЃС‚С–Р№РЅРѕ С‡РµРєР°С” РїС–РґРєР»СЋС‡РµРЅРЅСЏ РЅРѕРІРёС… РєР»С–С”РЅС‚С–РІ
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            StopServer();
+        }
+
+        private void StopServer()
+        {
+            if (running)
+            {
+                running = false;
+
+                try
+                {
+                    listener?.Stop();
+
+                    foreach (var client in clients.ToList())
+                    {
+                        try
+                        {
+                            client?.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Помилка закриття клієнта: {ex.Message}");
+                        }
+                    }
+
+                    if (listenThread != null && listenThread.IsAlive)
+                    {
+                        if (!listenThread.Join(2000))
+                        {
+                            Log("Примусове завершення потоку прослуховування");
+                            listenThread.Abort();
+                        }
+                    }
+
+                    clients.Clear();
+                    clientSessions.Clear();
+
+                    Log("Сервер зупинено");
+                    lblStatus.Text = "Статус: Зупинено";
+
+                    btnStart.Enabled = true;
+                    btnStop.Enabled = false;
+                    txtPort.Enabled = true;
+
+                    UpdateClientCount();
+                    UpdateClientGrid();
+                }
+                catch (Exception ex)
+                {
+                    Log($"Помилка при зупинці сервера: {ex.Message}");
+                }
+            }
+        }
+
         private void ListenForClients()
         {
             try
             {
                 while (running)
                 {
-                    // РџСЂРёР№РјР°С”РјРѕ РЅРѕРІРµ РїС–РґРєР»СЋС‡РµРЅРЅСЏ
-                    TcpClient client = listener.AcceptTcpClient();
-                    clients.Add(client);
-                    UpdateClientCount();
+                    try
+                    {
+                        TcpClient client = listener.AcceptTcpClient();
+                        clients.Add(client);
 
-                    // РЎС‚РІРѕСЂСЋС”РјРѕ РЅРѕРІРёР№ РїРѕС‚С–Рє РґР»СЏ СЂРѕР±РѕС‚Рё Р· С†РёРј РєР»С–С”РЅС‚РѕРј
-                    Thread clientThread = new Thread(HandleClient);
-                    clientThread.Start(client);
+                        Thread clientThread = new Thread(HandleClient);
+                        clientThread.IsBackground = true;
+                        clientThread.Start(client);
 
-                    LogChat("New client connected");
+                        Log("Новий клієнт підключився");
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
+                    catch (SocketException ex)
+                    {
+                        if (running)
+                        {
+                            Log($"Помилка сокета: {ex.Message}");
+                        }
+                        break;
+                    }
                 }
             }
-            catch (SocketException ex)
+            catch (Exception ex)
             {
-                LogChat($"Server was stopped: {ex.Message}");
+                if (running)
+                    Log($"Помилка сервера: {ex.Message}");
             }
+
+            Log("Потік прослуховування завершено");
         }
 
-        // РћР±СЂРѕР±РєР° РїРѕРІС–РґРѕРјР»РµРЅСЊ РІС–Рґ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РєР»С–С”РЅС‚Р°
         private void HandleClient(object obj)
         {
             TcpClient client = (TcpClient)obj;
-            NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
+            NetworkStream stream = null;
 
-            while (running)
+            try
             {
-                try
-                {
-                    // Р—С‡РёС‚СѓС”РјРѕ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ
-                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    if (bytesRead == 0) break;
+                stream = client.GetStream();
+                byte[] buffer = new byte[1024];
 
-                    string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    LogChat($"<Message>: {msg}");
-
-                    // Р’С–РґРїСЂР°РІР»СЏС”РјРѕ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ С–РЅС€РёРј РєР»С–С”РЅС‚Р°Рј
-                    Broadcast(msg, client);
-                }
-                catch
-                {
-                    break;
-                }
-            }
-
-            // РЇРєС‰Рѕ РєР»С–С”РЅС‚ РІС–РґРєР»СЋС‡РёРІСЃСЏ
-            clients.Remove(client);
-            UpdateClientCount();
-            //Log("Client disconnected");
-        }
-
-        // РќР°РґСЃРёР»Р°РЅРЅСЏ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ РІСЃС–Рј РїС–РґРєР»СЋС‡РµРЅРёРј РєР»С–С”РЅС‚Р°Рј (РєСЂС–Рј РІС–РґРїСЂР°РІРЅРёРєР°)
-        private void Broadcast(string msg, TcpClient sender)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(msg);
-
-            foreach (var client in clients)
-            {
-                if (client != sender)
+                while (running && client.Connected)
                 {
                     try
                     {
-                        client.GetStream().Write(data, 0, data.Length);
+                        int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                        if (bytesRead == 0) break;
+
+                        string jsonData = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                        var networkMessage = JsonSerializer.Deserialize<NetworkMessage>(jsonData);
+
+                        switch (networkMessage.Type)
+                        {
+                            case MessageType.Login:
+                                HandleLogin(client, networkMessage.Data);
+                                break;
+                            case MessageType.Register:
+                                HandleRegister(client, networkMessage.Data);
+                                break;
+                            case MessageType.Chat:
+                                HandleChatMessage(client, networkMessage.Data);
+                                break;
+                            case MessageType.Disconnect:
+                                HandleDisconnect(client);
+                                return;
+                            case MessageType.UserListRequest:
+                                SendUserList(client);
+                                break;
+                            case MessageType.PrivateMessage:
+                                var privateMsg = JsonSerializer.Deserialize<Protocol.ChatMessage>(networkMessage.Data);
+                                HandlePrivateMessage(privateMsg, client);
+                                break;
+                            case MessageType.MessageHistoryRequest:
+                                var historyRequest = JsonSerializer.Deserialize<Protocol.MessageHistoryRequest>(networkMessage.Data);
+                                SendMessageHistory(historyRequest, client);
+                                break;
+                        }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Р†РіРЅРѕСЂСѓС”РјРѕ, СЏРєС‰Рѕ РєР»С–С”РЅС‚ СѓР¶Рµ СЂРѕР·С–СЂРІР°РІ Р·вЂ™С”РґРЅР°РЅРЅСЏ
+                        if (running && client.Connected)
+                        {
+                            Log($"Помилка обробки клієнта: {ex.Message}");
+                        }
+                        break;
                     }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (running)
+                {
+                    Log($"Помилка клієнтського потоку: {ex.Message}");
+                }
+            }
+            finally
+            {
+                try
+                {
+                    stream?.Close();
+                }
+                catch { }
+
+                HandleDisconnect(client);
+            }
+        }
+
+        private void HandleLogin(TcpClient client, string data)
+        {
+            try
+            {
+                var loginRequest = JsonSerializer.Deserialize<LoginRequest>(data);
+                var response = new LoginResponse();
+
+                var user = _db.Users.FirstOrDefault(u =>
+                    u.Username.Equals(loginRequest.Username, StringComparison.OrdinalIgnoreCase) &&
+                    u.PasswordHash == loginRequest.Password);
+
+                if (user != null)
+                {
+                    if (clientSessions.Values.Contains(user.Id))
+                    {
+                        response.Success = false;
+                        response.Message = "Користувач уже увійшов у систему";
+                    }
+                    else
+                    {
+                        response.Success = true;
+                        response.Message = "Вхід виконано успішно";
+                        response.UserId = user.Id;
+                        clientSessions[client] = user.Id;
+                        Log($"Користувач {loginRequest.Username} увійшов у систему");
+                        UpdateClientGrid();
+                    }
+                }
+                else
+                {
+                    response.Success = false;
+                    response.Message = "Невірні облікові дані";
+                    Log($"Неуспішна спроба входу: {loginRequest.Username}");
+                }
+
+                SendToClient(client, MessageType.Login, JsonSerializer.Serialize(response));
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка обробки входу: {ex.Message}");
+                var errorResponse = new LoginResponse
+                {
+                    Success = false,
+                    Message = "Помилка сервера при обробці входу"
+                };
+                SendToClient(client, MessageType.Login, JsonSerializer.Serialize(errorResponse));
+            }
+        }
+
+        private void HandleRegister(TcpClient client, string data)
+        {
+            try
+            {
+                var registerRequest = JsonSerializer.Deserialize<LoginRequest>(data);
+                var response = new LoginResponse();
+
+                if (string.IsNullOrWhiteSpace(registerRequest.Username) || string.IsNullOrWhiteSpace(registerRequest.Password))
+                {
+                    response.Success = false;
+                    response.Message = "Ім'я користувача та пароль не можуть бути порожніми";
+                }
+                else if (_db.Users.Any(u => u.Username.Equals(registerRequest.Username, StringComparison.OrdinalIgnoreCase)))
+                {
+                    response.Success = false;
+                    response.Message = "Користувач вже існує";
+                    Log($"Спроба реєстрації існуючого користувача: {registerRequest.Username}");
+                }
+                else
+                {
+                    var newUser = new UserModel
+                    {
+                        Id = _db.NextUserId,
+                        Username = registerRequest.Username,
+                        PasswordHash = registerRequest.Password
+                    };
+
+                    _db.Users.Add(newUser);
+                    SaveDatabase();
+
+                    response.Success = true;
+                    response.Message = "Реєстрація виконана успішно";
+                    response.UserId = newUser.Id;
+                    clientSessions[client] = newUser.Id;
+                    Log($"Користувач {registerRequest.Username} зареєструвався");
+                    UpdateClientGrid();
+                }
+
+                SendToClient(client, MessageType.Register, JsonSerializer.Serialize(response));
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка обробки реєстрації: {ex.Message}");
+                var errorResponse = new LoginResponse
+                {
+                    Success = false,
+                    Message = "Помилка сервера при обробці реєстрації"
+                };
+                SendToClient(client, MessageType.Register, JsonSerializer.Serialize(errorResponse));
+            }
+        }
+
+        private void HandleChatMessage(TcpClient client, string data)
+        {
+            if (!clientSessions.ContainsKey(client)) return;
+
+            var chatMessage = JsonSerializer.Deserialize<ChatMessage>(data);
+            var userId = clientSessions[client];
+            var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+
+            if (user != null)
+            {
+                chatMessage.Username = user.Username;
+                chatMessage.Timestamp = DateTime.Now.ToString("HH:mm:ss");
+
+                Log($"<{chatMessage.Username}>: {chatMessage.Content}");
+
+                BroadcastChatMessage(chatMessage, client);
+            }
+        }
+
+        private void HandleDisconnect(TcpClient client)
+        {
+            if (clientSessions.ContainsKey(client))
+            {
+                var userId = clientSessions[client];
+                var user = _db.Users.FirstOrDefault(u => u.Id == userId);
+                Log($"Користувач {user?.Username} відключився");
+                clientSessions.Remove(client);
+                UpdateClientGrid();
+            }
+
+            clients.Remove(client);
+            UpdateClientCount();
+            client?.Close();
+        }
+
+        private void SendToClient(TcpClient client, MessageType type, string data)
+        {
+            try
+            {
+                if (client != null && client.Connected)
+                {
+                    var message = new NetworkMessage
+                    {
+                        Type = type,
+                        Data = data
+                    };
+
+                    string jsonData = JsonSerializer.Serialize(message);
+                    byte[] buffer = Encoding.UTF8.GetBytes(jsonData);
+                    client.GetStream().Write(buffer, 0, buffer.Length);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка відправки даних клієнту: {ex.Message}");
+                HandleDisconnect(client);
+            }
+        }
+
+        private void BroadcastChatMessage(ChatMessage chatMessage, TcpClient sender)
+        {
+            string data = JsonSerializer.Serialize(chatMessage);
+
+            foreach (var client in clients.ToList())
+            {
+                if (client != sender && clientSessions.ContainsKey(client))
+                {
+                    SendToClient(client, MessageType.Chat, data);
                 }
             }
         }
 
-        // Р”РѕРґР°С” Р·Р°РїРёСЃ Сѓ СЃРїРёСЃРѕРє Р»РѕРіС–РІ РЅР° С„РѕСЂРјС–
-        private void LogChat(string text)
+        private void SendUserList(TcpClient client)
         {
-            if (InvokeRequired)
-                Invoke((MethodInvoker)(() => listBoxLog.Items.Add(text)));
-            else
-                listBoxLog.Items.Add(text);
+            try
+            {
+                var userList = new Protocol.UserListResponse
+                {
+                    Users = _db.Users.Select(u => u.Username).ToList()
+                };
+
+                Log($"Відправка списку користувачів клієнту: {string.Join(", ", userList.Users)} (всього: {userList.Users.Count})");
+
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.UserList,
+                    Data = JsonSerializer.Serialize(userList)
+                };
+
+                string jsonData = JsonSerializer.Serialize(message);
+                byte[] data = Encoding.UTF8.GetBytes(jsonData);
+                client.GetStream().Write(data, 0, data.Length);
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка відправки списку користувачів: {ex.Message}");
+            }
         }
 
-        // РћРЅРѕРІР»СЋС” Р»С–С‡РёР»СЊРЅРёРє РїС–РґРєР»СЋС‡РµРЅРёС… РєР»С–С”РЅС‚С–РІ РЅР° С„РѕСЂРјС–
-        private void UpdateClientCount()
+        private void HandlePrivateMessage(Protocol.ChatMessage privateMsg, TcpClient sender)
         {
-            if (InvokeRequired)
-                Invoke((MethodInvoker)(() => lblClients.Text = $"Clients: {clients.Count}"));
-            else
-                lblClients.Text = $"Clietns: {clients.Count}";
+            try
+            {
+                Log($"Обробка приватного повідомлення: {privateMsg.Username} -> {privateMsg.Recipient}: {privateMsg.Content}");
+
+                string key = GetMessageHistoryKey(privateMsg.Username, privateMsg.Recipient);
+                if (!messageHistory.ContainsKey(key))
+                    messageHistory[key] = new List<Protocol.ChatMessage>();
+
+                messageHistory[key].Add(privateMsg);
+
+                var senderUser = _db.Users.FirstOrDefault(u => u.Username == privateMsg.Username);
+                var recipientUser = _db.Users.FirstOrDefault(u => u.Username == privateMsg.Recipient);
+
+                if (senderUser != null && recipientUser != null)
+                {
+                    var messageModel = new MessageModel
+                    {
+                        Id = _db.NextMessageId,
+                        SenderId = senderUser.Id,
+                        ReceiverId = recipientUser.Id,
+                        Content = privateMsg.Content,
+                        Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                    };
+
+                    _db.Messages.Add(messageModel);
+                    SaveDatabase();
+                    Log($"Повідомлення додано до БД: ID={messageModel.Id}, Від={senderUser.Username}, До={recipientUser.Username}");
+                }
+                else
+                {
+                    Log($"Помилка: не знайдено користувача. Відправник: {privateMsg.Username}, Одержувач: {privateMsg.Recipient}");
+                }
+
+                TcpClient recipientClient = null;
+                foreach (var kvp in clientSessions)
+                {
+                    if (_db.Users.FirstOrDefault(u => u.Id == kvp.Value)?.Username == privateMsg.Recipient)
+                    {
+                        recipientClient = kvp.Key;
+                        break;
+                    }
+                }
+
+                if (recipientClient != null)
+                {
+                    var message = new Protocol.NetworkMessage
+                    {
+                        Type = Protocol.MessageType.PrivateMessage,
+                        Data = JsonSerializer.Serialize(privateMsg)
+                    };
+
+                    string jsonData = JsonSerializer.Serialize(message);
+                    byte[] data = Encoding.UTF8.GetBytes(jsonData);
+                    recipientClient.GetStream().Write(data, 0, data.Length);
+                }
+
+                Log($"Приватне повідомлення від {privateMsg.Username} до {privateMsg.Recipient}: {privateMsg.Content}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка обробки приватного повідомлення: {ex.Message}");
+            }
         }
 
-        // РљРЅРѕРїРєР° "Stop" вЂ” Р·СѓРїРёРЅРєР° СЃРµСЂРІРµСЂР°
-        private void btnStop_Click(object sender, EventArgs e)
+        private void SendMessageHistory(Protocol.MessageHistoryRequest request, TcpClient client)
         {
-            running = false;
-            listener.Stop();
-            clients.Clear();
-            Log("Server was stopped");
-            UpdateClientCount();
+            try
+            {
+                string key = GetMessageHistoryKey(request.Username1, request.Username2);
+
+                if (!messageHistory.ContainsKey(key))
+                {
+                    var user1 = _db.Users.FirstOrDefault(u => u.Username == request.Username1);
+                    var user2 = _db.Users.FirstOrDefault(u => u.Username == request.Username2);
+
+                    if (user1 != null && user2 != null)
+                    {
+                        var messages = _db.Messages.Where(m =>
+                            (m.SenderId == user1.Id && m.ReceiverId == user2.Id) ||
+                            (m.SenderId == user2.Id && m.ReceiverId == user1.Id))
+                            .OrderBy(m => m.Id)
+                            .ToList();
+
+                        messageHistory[key] = new List<Protocol.ChatMessage>();
+
+                        foreach (var msg in messages)
+                        {
+                            var sender = _db.Users.FirstOrDefault(u => u.Id == msg.SenderId);
+                            var receiver = _db.Users.FirstOrDefault(u => u.Id == msg.ReceiverId);
+
+                            if (sender != null && receiver != null)
+                            {
+                                messageHistory[key].Add(new Protocol.ChatMessage
+                                {
+                                    Username = sender.Username,
+                                    Content = msg.Content,
+                                    Timestamp = msg.Timestamp,
+                                    Recipient = receiver.Username
+                                });
+                            }
+                        }
+                    }
+                }
+
+                var history = messageHistory.ContainsKey(key) ? messageHistory[key] : new List<Protocol.ChatMessage>();
+
+                var response = new Protocol.MessageHistoryResponse
+                {
+                    Messages = history
+                };
+
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.MessageHistory,
+                    Data = JsonSerializer.Serialize(response)
+                };
+
+                string jsonData = JsonSerializer.Serialize(message);
+                byte[] data = Encoding.UTF8.GetBytes(jsonData);
+                client.GetStream().Write(data, 0, data.Length);
+
+                Log($"Відправлено історію повідомлень між {request.Username1} та {request.Username2}: {history.Count} повідомлень");
+            }
+            catch (Exception ex)
+            {
+                Log($"Помилка відправки історії повідомлень: {ex.Message}");
+            }
         }
+
+        private string GetMessageHistoryKey(string username1, string username2)
+        {
+            var users = new[] { username1, username2 }.OrderBy(x => x).ToArray();
+            return $"{users[0]}_{users[1]}";
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            Log("Закриття застосунку - зупинка сервера...");
+            StopServer();
+
+            Thread.Sleep(500);
+        }
+
+        private void TxtPort_TextChanged(object sender, EventArgs e) { }
+
     }
 
     public class UserModel

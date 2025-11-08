@@ -92,11 +92,7 @@
             label2.Font = new Font("Segoe UI", 12F);
             label2.Location = new Point(270, 153);
             label2.Name = "label2";
-
-            label2.Size = new Size(142, 21);
-
-            //label2.Size = new Size(92, 28);
-
+            label2.Size = new Size(175, 28);
             label2.TabIndex = 4;
             label2.Text = "Server IP: 127.0.0.1";
             // 
@@ -125,7 +121,7 @@
             // btnStop
             // 
             btnStop.Font = new Font("Segoe UI", 12F);
-            btnStop.Location = new Point(224, 284);
+            btnStop.Location = new Point(321, 284);
             btnStop.Margin = new Padding(3, 4, 3, 4);
             btnStop.Name = "btnStop";
             btnStop.Size = new Size(203, 79);
@@ -137,7 +133,7 @@
             // btnClearLog
             // 
             btnClearLog.Font = new Font("Segoe UI", 12F);
-            btnClearLog.Location = new Point(432, 284);
+            btnClearLog.Location = new Point(614, 284);
             btnClearLog.Margin = new Padding(3, 4, 3, 4);
             btnClearLog.Name = "btnClearLog";
             btnClearLog.Size = new Size(203, 79);
@@ -149,11 +145,11 @@
             // 
             label3.AutoSize = true;
             label3.Font = new Font("Segoe UI", 20F);
-            label3.Location = new Point(278, 379);
+            label3.Location = new Point(14, 395);
             label3.Name = "label3";
-            label3.Size = new Size(84, 46);
+            label3.Size = new Size(90, 46);
             label3.TabIndex = 9;
-            label3.Text = "LOG";
+            label3.Text = "Logs";
             // 
             // listBoxLog
             // 
@@ -161,7 +157,7 @@
             listBoxLog.Location = new Point(14, 445);
             listBoxLog.Margin = new Padding(3, 4, 3, 4);
             listBoxLog.Name = "listBoxLog";
-            listBoxLog.Size = new Size(621, 264);
+            listBoxLog.Size = new Size(803, 264);
             listBoxLog.TabIndex = 10;
             // 
             // label4
@@ -181,13 +177,13 @@
             dataGridClients.Margin = new Padding(3, 4, 3, 4);
             dataGridClients.Name = "dataGridClients";
             dataGridClients.RowHeadersWidth = 51;
-            dataGridClients.Size = new Size(622, 200);
+            dataGridClients.Size = new Size(803, 200);
             dataGridClients.TabIndex = 12;
             // 
             // btnRefresh
             // 
             btnRefresh.Font = new Font("Segoe UI", 12F);
-            btnRefresh.Location = new Point(432, 976);
+            btnRefresh.Location = new Point(614, 976);
             btnRefresh.Margin = new Padding(3, 4, 3, 4);
             btnRefresh.Name = "btnRefresh";
             btnRefresh.Size = new Size(203, 79);
@@ -198,7 +194,7 @@
             // btnBan
             // 
             btnBan.Font = new Font("Segoe UI", 12F);
-            btnBan.Location = new Point(224, 976);
+            btnBan.Location = new Point(321, 976);
             btnBan.Margin = new Padding(3, 4, 3, 4);
             btnBan.Name = "btnBan";
             btnBan.Size = new Size(203, 79);
@@ -221,7 +217,7 @@
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(649, 1055);
+            ClientSize = new Size(848, 1055);
             Controls.Add(btnRefresh);
             Controls.Add(btnBan);
             Controls.Add(btnKick);
@@ -241,6 +237,7 @@
             Margin = new Padding(3, 4, 3, 4);
             Name = "Form1";
             Text = "Form1";
+            FormClosing += Form1_FormClosing;
             ((System.ComponentModel.ISupportInitialize)dataGridClients).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -264,5 +261,13 @@
         private Button btnRefresh;
         private Button btnBan;
         private Button btnKick;
+
+        private void txtPort_TextChanged(object sender, EventArgs e)
+        {
+            if (running)
+            {
+                txtPort.Text = "9000";
+            }
+        }
     }
 }
