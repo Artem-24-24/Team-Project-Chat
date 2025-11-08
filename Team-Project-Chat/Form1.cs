@@ -1,6 +1,7 @@
 using System;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -8,10 +9,11 @@ namespace Team_Project_Chat
 {
     public partial class Form1 : Form
     {
-        private TcpClient client;         // Клієнтський об’єкт TCP
-        private NetworkStream stream;     // Потік для обміну даними
-        private Thread receiveThread;     // Потік для отримання повідомлень
-        private string username = "Unknown"; // Ім’я користувача
+        private TcpClient client;         // пїЅлієпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅб’єпїЅпїЅ TCP
+        private NetworkStream stream;     // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+        private Thread receiveThread;     // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+        private string username = "Unknown"; // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+        private int userId = -1;          // ID РєРѕСЂРёСЃС‚СѓРІР°С‡Р°
 
 
         // onClose event
@@ -19,20 +21,20 @@ namespace Team_Project_Chat
         {
             InitializeComponent();
 
-            // Прив’язуємо подію завантаження форми
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
             this.Load += ClientForm_Load;
         }
 
-        // Підключення до сервера
+        // ПіпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         private void ConnectToServer()
         {
             try
             {
-                // Підключаємося до сервера (на цьому ж ПК)
+                // ПіпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ)
                 client = new TcpClient("127.0.0.1", 9000);
                 stream = client.GetStream();
 
-                // Запускаємо окремий потік для отримання повідомлень
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 receiveThread = new Thread(ReceiveMessages);
                 receiveThread.Start();
 
@@ -44,7 +46,7 @@ namespace Team_Project_Chat
             }
         }
 
-        // Отримання повідомлень від сервера
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         private void ReceiveMessages()
         {
             byte[] buffer = new byte[1024];
@@ -68,7 +70,7 @@ namespace Team_Project_Chat
             }
         }
 
-        // Додавання повідомлення у ListBox
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ ListBox
         private void AddMessage(string msg)
         {
             if (InvokeRequired)
@@ -77,28 +79,43 @@ namespace Team_Project_Chat
                 listBox1.Items.Add(msg);
         }
 
-        // Кнопка "Send" — відправка повідомлення на сервер
+        // пїЅпїЅпїЅпїЅпїЅпїЅ "Send" пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         private void btnSend_Click(object sender, EventArgs e)
         {
             if (stream == null) return;
             string text = txtMessage.Text.Trim();
             if (text == "") return;
 
-            string message = $"{username}: {text}";
-            byte[] data = Encoding.UTF8.GetBytes(message);
-            stream.Write(data, 0, data.Length);
+            try
+            {
+                // Send message using protocol
+                var chatMessage = new ProtocolMessage
+                {
+                    Type = "chat",
+                    Content = text,
+                    Username = username
+                };
 
-            AddMessage($"You: {text}");
-            txtMessage.Clear();
+                string json = JsonSerializer.Serialize(chatMessage);
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                stream.Write(data, 0, data.Length);
+
+                AddMessage($"You: {text}");
+                txtMessage.Clear();
+            }
+            catch (Exception ex)
+            {
+                AddMessage($"Error sending message: {ex.Message}");
+            }
         }
 
-        // Подія при завантаженні форми — автоматичне підключення
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         private void ClientForm_Load(object sender, EventArgs e)
         {
             ConnectToServer();
         }
 
-        // Метод для встановлення імені користувача
+        // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         public void SetUsername(string user)
         {
             username = user;
@@ -117,8 +134,10 @@ namespace Team_Project_Chat
 
             if (result == DialogResult.OK)
             {
-                this.SetUsername(loginForm.tb_login.Text);
-                this.Text = "Chat Client - " + loginForm.tb_login.Text;
+                this.username = loginForm.Username;
+                this.userId = loginForm.UserId;
+                this.SetUsername(loginForm.Username);
+                this.Text = "Chat Client - " + loginForm.Username;
             }
             else
             {

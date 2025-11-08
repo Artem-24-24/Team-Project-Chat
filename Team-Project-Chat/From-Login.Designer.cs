@@ -34,6 +34,7 @@
             label2 = new Label();
             label3 = new Label();
             btn_login = new Button();
+            btn_register = new Button();
             SuspendLayout();
             // 
             // tb_login
@@ -47,6 +48,7 @@
             // 
             tb_password.Location = new Point(473, 338);
             tb_password.Name = "tb_password";
+            tb_password.PasswordChar = '*';
             tb_password.Size = new Size(205, 27);
             tb_password.TabIndex = 1;
             // 
@@ -80,19 +82,30 @@
             // 
             // btn_login
             // 
-            btn_login.DialogResult = DialogResult.OK;
             btn_login.Location = new Point(473, 413);
             btn_login.Name = "btn_login";
             btn_login.Size = new Size(205, 60);
             btn_login.TabIndex = 5;
             btn_login.Text = "Увійти";
             btn_login.UseVisualStyleBackColor = true;
+            btn_login.Click += btn_login_Click;
+            // 
+            // btn_register
+            // 
+            btn_register.Location = new Point(473, 485);
+            btn_register.Name = "btn_register";
+            btn_register.Size = new Size(205, 60);
+            btn_register.TabIndex = 6;
+            btn_register.Text = "Зареєструватися";
+            btn_register.UseVisualStyleBackColor = true;
+            btn_register.Click += btn_register_Click;
             // 
             // From_Login
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1163, 675);
+            Controls.Add(btn_register);
             Controls.Add(btn_login);
             Controls.Add(label3);
             Controls.Add(label2);
@@ -100,7 +113,7 @@
             Controls.Add(tb_password);
             Controls.Add(tb_login);
             Name = "From_Login";
-            Text = "From_Login";
+            Text = "Логін / Реєстрація";
             Load += From_Login_Load;
             ResumeLayout(false);
             PerformLayout();
@@ -109,10 +122,11 @@
         #endregion
 
         public TextBox tb_login;
-        private TextBox tb_password;
+        public TextBox tb_password;
         private Label label1;
         private Label label2;
         private Label label3;
         private Button btn_login;
+        private Button btn_register;
     }
 }

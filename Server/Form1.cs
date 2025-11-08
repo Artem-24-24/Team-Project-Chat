@@ -33,7 +33,7 @@ namespace Server
 
             lblStatus.Text = "Status: Disconnected";
             label2.Text = $"Local DB: {DbFilePath}";
-            txtPort.Text = "Локально";
+            txtPort.Text = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ";
 
             btnStart.Click += BtnStart_Click;
             btnClearLog.Click += BtnClearLog_Click;
@@ -64,7 +64,7 @@ namespace Server
         {
             _currentUserId = -1;
             lblStatus.Text = "Status: Disconnected";
-            Log("Сессія завершена (имітація виходу).");
+            Log("пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ).");
         }
 
 
@@ -72,42 +72,42 @@ namespace Server
         {
             if (_currentUserId != -1)
             {
-                Log("Вже авторизований! Вийдіть перед повторним входом!");
+                Log("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!");
                 return;
             }
 
             var username = "testuser";
             var password = "password123";
 
-            Log($"Спроба логіну для {username}...");
+            Log($"пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ {username}...");
 
             if (Login(username, password))
             {
                 lblStatus.Text = "Status: Logged In";
-                Log($"Успішний вхід. User ID: {_currentUserId}");
+                Log($"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ. User ID: {_currentUserId}");
                 await TestChatEndpoints();
                 return;
             }
 
-            Log("Не вийшло залогінитися. Спроба реєстраціЇ...");
+            Log("пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ...");
             if (Register(username, password))
             {
                 Login(username, password);
                 lblStatus.Text = "Status: Registered & Logged In";
-                Log($"Успішна реєстрація і вхід. User ID: {_currentUserId}");
+                Log($"пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ. User ID: {_currentUserId}");
                 await TestChatEndpoints();
                 return;
             }
 
             lblStatus.Text = "Status: Failed to Connect/Login";
-            Log("Помилка: Не вдалося ввійти або зареєструватися.");
+            Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
         }
 
         private void BtnRefresh_Click(object sender, EventArgs e)
         {
             if (_currentUserId == -1)
             {
-                Log("Спочатку авторизуйтесь.");
+                Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
                 return;
             }
 
@@ -126,17 +126,17 @@ namespace Server
                 {
                     string jsonString = File.ReadAllText(DbFilePath);
                     _db = JsonSerializer.Deserialize<LocalDatabase>(jsonString) ?? new LocalDatabase();
-                    Log("База даних успішно завантажена!");
+                    Log("пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ!");
                 }
                 catch (Exception ex)
                 {
-                    Log($"Помилка завантаження БД: {ex.Message}. Використовуєтся пуста БД!");
+                    Log($"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ: {ex.Message}. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ!");
                     _db = new LocalDatabase();
                 }
             }
             else
             {
-                Log("Файл БД не знайдений. Створюєтся нова база даних.");
+                Log("пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.");
             }
             UpdateClientGrid();
         }
@@ -155,7 +155,7 @@ namespace Server
             }
             catch (Exception ex)
             {
-                Log($"Помилка збереження БД: {ex.Message}");
+                Log($"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ: {ex.Message}");
             }
         }
 
@@ -173,7 +173,7 @@ namespace Server
 
         private void DisplayAllUsers()
         {
-            Log($"Список користувачів ({_db.Users.Count})");
+            Log($"пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ({_db.Users.Count})");
             foreach (var user in _db.Users)
             {
                 Log($"ID: {user.Id}, Username: {user.Username}");
@@ -189,7 +189,7 @@ namespace Server
         {
             if (_db.Users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
             {
-                Log("Помилка реєстрації: Користувач вже існує.");
+                Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.");
                 return false;
             }
 
@@ -237,7 +237,7 @@ namespace Server
         {
             if (_currentUserId == -1)
             {
-                Log("Помилка: Не можна відправити повідомлення без авторизації!");
+                Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ!");
                 return null;
             }
 
@@ -268,18 +268,18 @@ namespace Server
 
             int contactId = 2;
 
-            Log($"Тест API: Відправка повідомлення ID {contactId}");
-            SendMessage(contactId, "Привіт, це тестове повідомлення із Form1!");
+            Log($"пїЅпїЅпїЅпїЅ API: ВіпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ID {contactId}");
+            SendMessage(contactId, "пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ Form1!");
 
-            Log($"Тест API: Получение истории с ID {contactId}");
+            Log($"пїЅпїЅпїЅпїЅ API: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ ID {contactId}");
             var history = GetMessageHistory(contactId);
 
             foreach (var msg in history)
             {
-                Log($"Повідомлення від {msg.SenderId} в {msg.Timestamp}: {msg.Content}");
+                Log($"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ {msg.SenderId} пїЅ {msg.Timestamp}: {msg.Content}");
             }
 
-            //Log("Тест API завершено");
+            //Log("пїЅпїЅпїЅпїЅ API пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ");
 
             return Task.CompletedTask;
         }
@@ -338,7 +338,9 @@ namespace Server
         {
             TcpClient client = (TcpClient)obj;
             NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[4096];
+            int? authenticatedUserId = null;
+            string authenticatedUsername = "";
 
             while (running)
             {
@@ -349,10 +351,96 @@ namespace Server
                     if (bytesRead == 0) break;
 
                     string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    LogChat($"<Message>: {msg}");
-
-                    // Р’С–РґРїСЂР°РІР»СЏС”РјРѕ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ С–РЅС€РёРј РєР»С–С”РЅС‚Р°Рј
-                    Broadcast(msg, client);
+                    
+                    // Try to parse as protocol message
+                    try
+                    {
+                        var protocolMsg = JsonSerializer.Deserialize<ProtocolMessage>(msg);
+                        
+                        if (protocolMsg != null)
+                        {
+                            if (protocolMsg.Type == "login")
+                            {
+                                LogChat($"Login attempt: {protocolMsg.Username}");
+                                var response = new ProtocolMessage { Type = "response" };
+                                
+                                if (Login(protocolMsg.Username, protocolMsg.Password))
+                                {
+                                    var user = _db.Users.FirstOrDefault(u => u.Username.Equals(protocolMsg.Username, StringComparison.OrdinalIgnoreCase));
+                                    authenticatedUserId = user.Id;
+                                    authenticatedUsername = user.Username;
+                                    response.Success = true;
+                                    response.UserId = user.Id;
+                                    response.Username = user.Username;
+                                    LogChat($"Login successful: {protocolMsg.Username} (ID: {user.Id})");
+                                    UpdateClientGrid();
+                                }
+                                else
+                                {
+                                    response.Success = false;
+                                    response.ErrorMessage = "Invalid username or password";
+                                    LogChat($"Login failed: {protocolMsg.Username}");
+                                }
+                                
+                                SendProtocolMessage(stream, response);
+                            }
+                            else if (protocolMsg.Type == "register")
+                            {
+                                LogChat($"Register attempt: {protocolMsg.Username}");
+                                var response = new ProtocolMessage { Type = "response" };
+                                
+                                if (Register(protocolMsg.Username, protocolMsg.Password))
+                                {
+                                    var user = _db.Users.FirstOrDefault(u => u.Username.Equals(protocolMsg.Username, StringComparison.OrdinalIgnoreCase));
+                                    authenticatedUserId = user.Id;
+                                    authenticatedUsername = user.Username;
+                                    response.Success = true;
+                                    response.UserId = user.Id;
+                                    response.Username = user.Username;
+                                    LogChat($"Registration successful: {protocolMsg.Username} (ID: {user.Id})");
+                                    UpdateClientGrid();
+                                }
+                                else
+                                {
+                                    response.Success = false;
+                                    response.ErrorMessage = "Username already exists";
+                                    LogChat($"Registration failed: {protocolMsg.Username}");
+                                }
+                                
+                                SendProtocolMessage(stream, response);
+                            }
+                            else if (protocolMsg.Type == "chat" && authenticatedUserId.HasValue)
+                            {
+                                // Chat message from authenticated user
+                                string formattedMsg = $"{authenticatedUsername}: {protocolMsg.Content}";
+                                LogChat($"<{authenticatedUsername}>: {protocolMsg.Content}");
+                                
+                                // Save message to database (broadcast message, receiverId = 0 for all)
+                                var chatMsg = new MessageModel
+                                {
+                                    Id = _db.NextMessageId,
+                                    SenderId = authenticatedUserId.Value,
+                                    ReceiverId = 0, // 0 means broadcast
+                                    Content = protocolMsg.Content,
+                                    Timestamp = DateTime.Now.ToString("HH:mm:ss dd.MM.yyyy")
+                                };
+                                _db.Messages.Add(chatMsg);
+                                SaveDatabase();
+                                
+                                // Р’С–РґРїСЂР°РІР»СЏС”РјРѕ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ С–РЅС€РёРј РєР»С–С”РЅС‚Р°Рј
+                                Broadcast(formattedMsg, client);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // If not a protocol message, treat as regular chat (legacy support)
+                        if (authenticatedUserId.HasValue)
+                        {
+                            LogChat($"<{authenticatedUsername}>: {msg}");
+                            Broadcast(msg, client);
+                        }
+                    }
                 }
                 catch
                 {
@@ -363,7 +451,24 @@ namespace Server
             // РЇРєС‰Рѕ РєР»С–С”РЅС‚ РІС–РґРєР»СЋС‡РёРІСЃСЏ
             clients.Remove(client);
             UpdateClientCount();
-            //Log("Client disconnected");
+            if (authenticatedUsername != "")
+            {
+                LogChat($"Client disconnected: {authenticatedUsername}");
+            }
+        }
+
+        private void SendProtocolMessage(NetworkStream stream, ProtocolMessage message)
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(message);
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                stream.Write(data, 0, data.Length);
+            }
+            catch (Exception ex)
+            {
+                LogChat($"Error sending protocol message: {ex.Message}");
+            }
         }
 
         // РќР°РґСЃРёР»Р°РЅРЅСЏ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ РІСЃС–Рј РїС–РґРєР»СЋС‡РµРЅРёРј РєР»С–С”РЅС‚Р°Рј (РєСЂС–Рј РІС–РґРїСЂР°РІРЅРёРєР°)
@@ -438,5 +543,17 @@ namespace Server
         public List<MessageModel> Messages { get; set; } = new List<MessageModel>();
         public int NextUserId => Users.Any() ? Users.Max(u => u.Id) + 1 : 1;
         public int NextMessageId => Messages.Any() ? Messages.Max(m => m.Id) + 1 : 1;
+    }
+
+    // Protocol messages for client-server communication
+    public class ProtocolMessage
+    {
+        public string Type { get; set; } // "login", "register", "chat", "response"
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string Content { get; set; }
+        public bool Success { get; set; }
+        public string ErrorMessage { get; set; }
+        public int UserId { get; set; }
     }
 }
