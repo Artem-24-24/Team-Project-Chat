@@ -1,4 +1,4 @@
-using System.Net.Sockets;
+п»їusing System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
@@ -9,7 +9,7 @@ namespace Team_Project_Chat
         private TcpClient client;
         private NetworkStream stream;
         private Thread receiveThread;
-        private string username = "Невідомо";
+        private string username = "РќРµРІС–РґРѕРјРѕ";
         private bool isConnected = false;
         private string selectedUser = null;
         private Dictionary<string, List<Protocol.ChatMessage>> messageHistory = new Dictionary<string, List<Protocol.ChatMessage>>();
@@ -19,6 +19,7 @@ namespace Team_Project_Chat
             InitializeComponent();
             btnSend.Enabled = false;
             txtMessage.Enabled = false;
+            InitializeTimer();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -29,32 +30,65 @@ namespace Team_Project_Chat
             if (result == DialogResult.OK)
             {
                 this.username = loginForm.GetUsername();
-                this.Text = $"Чат - {username}";
+                this.Text = $"Р§Р°С‚ - {username}";
                 if (lblLoggedIn != null)
-                    lblLoggedIn.Text = $"Користувач: {username}";
+                    lblLoggedIn.Text = $"РљРѕСЂРёСЃС‚СѓРІР°С‡: {username}";
 
-                this.client = loginForm.GetClient();
-                this.stream = loginForm.GetStream();
 
-                if (this.client != null && this.client.Connected && this.stream != null)
-                {
-                    this.isConnected = true;
-
-                    receiveThread = new Thread(ReceiveMessages);
-                    receiveThread.IsBackground = true;
-                    receiveThread.Start();
-
-                    RequestUserList();
-                }
-                else
-                {
-                    MessageBox.Show("Помилка підключення до сервера");
-                    this.Close();
-                }
+                ConnectToServer();
             }
             else
             {
                 this.Close();
+            }
+        }
+
+        private void ConnectToServer()
+        {
+            try
+            {
+                this.client = new TcpClient("127.0.0.1", 9000);
+                this.stream = client.GetStream();
+                this.isConnected = true;
+
+                receiveThread = new Thread(ReceiveMessages);
+                receiveThread.IsBackground = true;
+                receiveThread.Start();
+
+                SendLoginToServer();
+
+                RequestUserList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РџРѕРјРёР»РєР° РїС–РґРєР»СЋС‡РµРЅРЅСЏ РґРѕ СЃРµСЂРІРµСЂР°: {ex.Message}");
+                this.Close();
+            }
+        }
+
+        private void SendLoginToServer()
+        {
+            try
+            {
+                var loginRequest = new Protocol.LoginRequest
+                {
+                    Username = this.username,
+                    Password = ""
+                };
+
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.Login,
+                    Data = JsonSerializer.Serialize(loginRequest)
+                };
+
+                string jsonData = JsonSerializer.Serialize(message);
+                byte[] data = Encoding.UTF8.GetBytes(jsonData);
+                stream.Write(data, 0, data.Length);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РџРѕРјРёР»РєР° Р°РІС‚РѕСЂРёР·Р°С†С–С—: {ex.Message}");
             }
         }
 
@@ -74,8 +108,17 @@ namespace Team_Project_Chat
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Помилка запиту списку користувачів: {ex.Message}");
+                // MessageBox.Show($"РџРѕРјРёР»РєР° Р·Р°РїРёС‚Сѓ СЃРїРёСЃРєСѓ РєРѕСЂРёСЃС‚СѓРІР°С‡С–РІ: {ex.Message}");
             }
+        }
+
+
+        private void InitializeTimer()
+        {
+            System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
+            timer.Interval = 10000;
+            timer.Tick += (s, e) => RequestUserList();
+            timer.Start();
         }
 
         private void RequestMessageHistory(string otherUser)
@@ -100,7 +143,7 @@ namespace Team_Project_Chat
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Помилка запиту історії повідомлень: {ex.Message}");
+                MessageBox.Show($"РџРѕРјРёР»РєР° Р·Р°РїРёС‚Сѓ С–СЃС‚РѕСЂС–С— РїРѕРІС–РґРѕРјР»РµРЅСЊ: {ex.Message}");
             }
         }
 
@@ -136,13 +179,20 @@ namespace Team_Project_Chat
                             var historyResponse = JsonSerializer.Deserialize<Protocol.MessageHistoryResponse>(networkMessage.Data);
                             DisplayMessageHistory(historyResponse.Messages);
                             break;
+
+                        case Protocol.MessageType.Chat:
+                            break;
+
+                        default:
+                            RequestUserList();
+                            break;
                     }
                 }
                 catch (Exception ex)
                 {
                     if (isConnected)
                     {
-                        MessageBox.Show($"Помилка отримання даних: {ex.Message}");
+                        Console.WriteLine($"Receive error: {ex.Message}");
                     }
                     break;
                 }
@@ -171,28 +221,30 @@ namespace Team_Project_Chat
 
             if (lblLoggedIn != null)
             {
-                lblLoggedIn.Text = $"Користувач: {username}\nУсього користувачів на сервері: {users.Count}\nУ списку: {listBoxUsers.Items.Count}";
+                lblLoggedIn.Text = $"РљРѕСЂРёСЃС‚СѓРІР°С‡: {username}\nРЈСЃСЊРѕРіРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡С–РІ РЅР° СЃРµСЂРІРµСЂС–: {users.Count}\nРЈ СЃРїРёСЃРєСѓ: {listBoxUsers.Items.Count}";
             }
         }
 
-        private void HandlePrivateMessage(Protocol.ChatMessage message)
+
+        private void UpdateUserWithNotification(string username)
         {
-            if (InvokeRequired)
+            try
             {
-                Invoke((MethodInvoker)(() => HandlePrivateMessage(message)));
-                return;
+                for (int i = 0; i < listBoxUsers.Items.Count; i++)
+                {
+                    string item = listBoxUsers.Items[i].ToString();
+                    string cleanUsername = item.Replace(" в—Џ", "").Trim();
+
+                    if (cleanUsername == username && !item.Contains("в—Џ"))
+                    {
+                        listBoxUsers.Items[i] = $"{username} в—Џ";
+                        break;
+                    }
+                }
             }
-
-            string otherUser = message.Username == username ? message.Recipient : message.Username;
-
-            if (!messageHistory.ContainsKey(otherUser))
-                messageHistory[otherUser] = new List<Protocol.ChatMessage>();
-
-            messageHistory[otherUser].Add(message);
-
-            if (selectedUser == otherUser)
+            catch (Exception ex)
             {
-                DisplayMessage(message);
+                Console.WriteLine($"РџРѕРјРёР»РєР° РѕРЅРѕРІР»РµРЅРЅСЏ СЃРїРѕРІС–С‰РµРЅРЅСЏ: {ex.Message}");
             }
         }
 
@@ -204,15 +256,22 @@ namespace Team_Project_Chat
                 return;
             }
 
-            if (selectedUser != null)
+            try
             {
-                messageHistory[selectedUser] = messages;
-
-                listBoxMessages.Items.Clear();
-                foreach (var message in messages)
+                if (selectedUser != null)
                 {
-                    DisplayMessage(message);
+                    messageHistory[selectedUser] = messages;
+
+                    listBoxMessages.Items.Clear();
+                    foreach (var message in messages)
+                    {
+                        DisplayMessage(message);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РџРѕРјРёР»РєР° РІС–РґРѕР±СЂР°Р¶РµРЅРЅСЏ С–СЃС‚РѕСЂС–С—: {ex.Message}");
             }
         }
 
@@ -221,7 +280,7 @@ namespace Team_Project_Chat
             string displayText;
             if (message.Username == username)
             {
-                displayText = $"Ви ({message.Timestamp}): {message.Content}";
+                displayText = $"Р’Рё ({message.Timestamp}): {message.Content}";
             }
             else
             {
@@ -239,27 +298,63 @@ namespace Team_Project_Chat
 
         private void listBoxUsers_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (listBoxUsers.SelectedItem != null)
+            try
             {
-                selectedUser = listBoxUsers.SelectedItem.ToString();
-                lblChatWith.Text = $"Чат з: {selectedUser}";
-
-                btnSend.Enabled = true;
-                txtMessage.Enabled = true;
-
-                listBoxMessages.Items.Clear();
-
-                if (messageHistory.ContainsKey(selectedUser))
+                if (listBoxUsers.SelectedItem != null)
                 {
-                    foreach (var message in messageHistory[selectedUser])
+                    selectedUser = listBoxUsers.SelectedItem.ToString().Replace(" в—Џ", "").Trim();
+
+                    lblChatWith.Text = $"Р§Р°С‚ Р·: {selectedUser}";
+                    btnSend.Enabled = true;
+                    txtMessage.Enabled = true;
+
+                    listBoxMessages.Items.Clear();
+
+                    if (messageHistory.ContainsKey(selectedUser))
                     {
-                        DisplayMessage(message);
+                        foreach (var message in messageHistory[selectedUser])
+                        {
+                            DisplayMessage(message);
+                        }
+                    }
+                    else
+                    {
+                        RequestMessageHistory(selectedUser);
                     }
                 }
-                else
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РџРѕРјРёР»РєР° РїСЂРё РІРёР±РѕСЂС– РєРѕСЂРёСЃС‚СѓРІР°С‡Р°: {ex.Message}");
+            }
+        }
+
+        private void HandlePrivateMessage(Protocol.ChatMessage message)
+        {
+            if (InvokeRequired)
+            {
+                Invoke((MethodInvoker)(() => HandlePrivateMessage(message)));
+                return;
+            }
+
+            try
+            {
+                string otherUser = message.Username == username ? message.Recipient : message.Username;
+
+                if (!messageHistory.ContainsKey(otherUser))
+                    messageHistory[otherUser] = new List<Protocol.ChatMessage>();
+
+                messageHistory[otherUser].Add(message);
+
+
+                if (selectedUser == otherUser)
                 {
-                    RequestMessageHistory(selectedUser);
+                    DisplayMessage(message);
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РџРѕРјРёР»РєР° РѕР±СЂРѕР±РєРё РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ: {ex.Message}");
             }
         }
 
@@ -281,7 +376,7 @@ namespace Team_Project_Chat
         {
             if (stream == null || !isConnected || client == null || !client.Connected || selectedUser == null)
             {
-                MessageBox.Show("Немає підключення до сервера або не обрано одержувача");
+                MessageBox.Show("РќРµРјР°С” РїС–РґРєР»СЋС‡РµРЅРЅСЏ РґРѕ СЃРµСЂРІРµСЂР° Р°Р±Рѕ РЅРµ РѕР±СЂР°РЅРѕ РѕРґРµСЂР¶СѓРІР°С‡Р°");
                 return;
             }
 
@@ -319,7 +414,7 @@ namespace Team_Project_Chat
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Помилка надсилання повідомлення: {ex.Message}");
+                MessageBox.Show($"РџРѕРјРёР»РєР° РЅР°РґСЃРёР»Р°РЅРЅСЏ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ: {ex.Message}");
                 isConnected = false;
             }
         }
@@ -354,7 +449,7 @@ namespace Team_Project_Chat
         {
             username = user;
             if (lblLoggedIn != null)
-                lblLoggedIn.Text = $"Користувач: {user}";
+                lblLoggedIn.Text = $"РљРѕСЂРёСЃС‚СѓРІР°С‡: {user}";
         }
     }
 }

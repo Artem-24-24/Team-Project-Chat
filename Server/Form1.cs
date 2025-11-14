@@ -141,39 +141,51 @@ namespace Server
 
         private void UpdateClientGrid()
         {
+            var onlineUsers = new List<object>();
+
+            foreach (var user in _db.Users)
+            {
+                string status = clientSessions.Values.Contains(user.Id) ? "Онлайн" : "Офлайн";
+                onlineUsers.Add(new
+                {
+                    user.Id,
+                    user.Username,
+                    Status = status
+                });
+            }
+
             if (dataGridClients.InvokeRequired)
             {
                 dataGridClients.Invoke(new Action(() =>
                 {
                     dataGridClients.DataSource = null;
-                    dataGridClients.DataSource = _db.Users.Select(u => new
-                    {
-                        u.Id,
-                        u.Username,
-                        Status = clientSessions.Values.Contains(u.Id) ? "Онлайн" : "Офлайн"
-                    }).ToList();
+                    dataGridClients.DataSource = onlineUsers;
+                    dataGridClients.Refresh();
                 }));
             }
             else
             {
                 dataGridClients.DataSource = null;
-                dataGridClients.DataSource = _db.Users.Select(u => new
-                {
-                    u.Id,
-                    u.Username,
-                    Status = clientSessions.Values.Contains(u.Id) ? "Онлайн" : "Офлайн"
-                }).ToList();
+                dataGridClients.DataSource = onlineUsers;
+                dataGridClients.Refresh();
             }
-
-            UpdateClientCount();
         }
 
         private void UpdateClientCount()
         {
             if (InvokeRequired)
-                Invoke((MethodInvoker)(() => lblClients.Text = $"Клієнти: {clientSessions.Count}"));
+            {
+                Invoke((MethodInvoker)(() =>
+                {
+                    lblClients.Text = $"Клієнти: {clientSessions.Count}";
+                    UpdateClientGrid();
+                }));
+            }
             else
+            {
                 lblClients.Text = $"Клієнти: {clientSessions.Count}";
+                UpdateClientGrid();
+            }
         }
 
         private void DisplayAllUsers()
@@ -203,6 +215,8 @@ namespace Server
 
                     Log($"Сервер запущено на порту {port}");
                     lblStatus.Text = "Статус: Запущено";
+
+                    Log($"Сервер слухає: {listener.LocalEndpoint}");
 
                     btnStart.Enabled = false;
                     btnStop.Enabled = true;
@@ -416,6 +430,8 @@ namespace Server
                         clientSessions[client] = user.Id;
                         Log($"Користувач {loginRequest.Username} увійшов у систему");
                         UpdateClientGrid();
+
+                        BroadcastUserListToAllClients();
                     }
                 }
                 else
@@ -475,9 +491,18 @@ namespace Server
                     clientSessions[client] = newUser.Id;
                     Log($"Користувач {registerRequest.Username} зареєструвався");
                     UpdateClientGrid();
+
+                    BroadcastUserListToAllClients();
                 }
 
                 SendToClient(client, MessageType.Register, JsonSerializer.Serialize(response));
+
+                Log($"Відправлено відповідь на реєстрацію: Success={response.Success}, Message={response.Message}");
+
+                if (response.Success)
+                {
+                    Log($"Користувач {registerRequest.Username} успішно зареєстрований і залишається підключеним");
+                }
             }
             catch (Exception ex)
             {
@@ -516,9 +541,11 @@ namespace Server
             {
                 var userId = clientSessions[client];
                 var user = _db.Users.FirstOrDefault(u => u.Id == userId);
-                Log($"Користувач {user?.Username} відключився");
+                Log($"Користувач {user?.Username} відключився (нормальний дисконнект)");
                 clientSessions.Remove(client);
                 UpdateClientGrid();
+
+                BroadcastUserListToAllClients();
             }
 
             clients.Remove(client);
@@ -656,6 +683,53 @@ namespace Server
             }
         }
 
+        private void BroadcastUserListToAllClients()
+        {
+            try
+            {
+                var userList = new Protocol.UserListResponse
+                {
+                    Users = _db.Users.Select(u => u.Username).ToList()
+                };
+
+                Log($"Broadcasting user list to all clients: {string.Join(", ", userList.Users)} (total: {userList.Users.Count})");
+                Log($"Active clients count: {clients.Count}, Authenticated clients: {clientSessions.Count}");
+
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.UserList,
+                    Data = JsonSerializer.Serialize(userList)
+                };
+
+                string jsonData = JsonSerializer.Serialize(message);
+                byte[] data = Encoding.UTF8.GetBytes(jsonData);
+
+                int sentCount = 0;
+                foreach (var client in clients.ToList())
+                {
+                    if (client.Connected && clientSessions.ContainsKey(client))
+                    {
+                        try
+                        {
+                            client.GetStream().Write(data, 0, data.Length);
+                            sentCount++;
+                            Log($"Sent user list to client: {_db.Users.FirstOrDefault(u => u.Id == clientSessions[client])?.Username}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Error sending user list to client: {ex.Message}");
+                        }
+                    }
+                }
+
+                Log($"Successfully sent user list to {sentCount} clients");
+            }
+            catch (Exception ex)
+            {
+                Log($"Error broadcasting user list: {ex.Message}");
+            }
+        }
+
         private void SendMessageHistory(Protocol.MessageHistoryRequest request, TcpClient client)
         {
             try
@@ -762,4 +836,5 @@ namespace Server
         public int NextUserId => Users.Any() ? Users.Max(u => u.Id) + 1 : 1;
         public int NextMessageId => Messages.Any() ? Messages.Max(m => m.Id) + 1 : 1;
     }
+
 }

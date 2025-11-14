@@ -6,8 +6,6 @@ namespace Team_Project_Chat
 {
     public partial class From_Login : Form
     {
-        private TcpClient client;
-        private NetworkStream stream;
         private string loggedInUsername;
 
         public From_Login()
@@ -15,6 +13,11 @@ namespace Team_Project_Chat
             InitializeComponent();
             this.AcceptButton = btn_login;
             ClearErrorMessage();
+        }
+
+        public string GetUsername()
+        {
+            return loggedInUsername;
         }
 
         private void btn_login_Click(object sender, EventArgs e)
@@ -27,18 +30,24 @@ namespace Team_Project_Chat
             if (!ValidateInput(username, password))
                 return;
 
-            if (ConnectToServer())
+            try
             {
-                if (AttemptLogin(username, password))
+                using (TcpClient tempClient = new TcpClient())
                 {
-                    loggedInUsername = username;
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    tempClient.Connect("127.0.0.1", 9000);
+                    NetworkStream tempStream = tempClient.GetStream();
+
+                    if (AttemptLogin(username, password, tempStream))
+                    {
+                        loggedInUsername = username;
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
                 }
-                else
-                {
-                    CloseConnection();
-                }
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Не вдалося підключитися до сервера: {ex.Message}");
             }
         }
 
@@ -52,18 +61,33 @@ namespace Team_Project_Chat
             if (!ValidateInput(username, password))
                 return;
 
-            if (ConnectToServer())
+            try
             {
-                if (AttemptRegister(username, password))
+                Console.WriteLine("Створюю TCP клієнт...");
+                using (TcpClient tempClient = new TcpClient())
                 {
-                    loggedInUsername = username;
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    Console.WriteLine("Підключаюся до 127.0.0.1:9000...");
+                    tempClient.Connect("127.0.0.1", 9000);
+                    Console.WriteLine("Підключено, отримую потік...");
+                    NetworkStream tempStream = tempClient.GetStream();
+
+                    if (AttemptRegister(username, password, tempStream))
+                    {
+                        Console.WriteLine("Реєстрація успішна, закриваю форму...");
+                        loggedInUsername = username;
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Реєстрація невдала");
+                    }
                 }
-                else
-                {
-                    CloseConnection();
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка підключення: {ex.Message}");
+                ShowError($"Не вдалося підключитися до сервера: {ex.Message}");
             }
         }
 
@@ -90,56 +114,57 @@ namespace Team_Project_Chat
             return true;
         }
 
-        private bool ConnectToServer()
+        private bool AttemptLogin(string username, string password, NetworkStream stream)
         {
             try
             {
-                client = new TcpClient("127.0.0.1", 9000);
-                stream = client.GetStream();
-                return true;
+                var loginRequest = new Protocol.LoginRequest
+                {
+                    Username = username,
+                    Password = password
+                };
+
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.Login,
+                    Data = JsonSerializer.Serialize(loginRequest)
+                };
+
+                return SendAndWaitForResponse(message, true, stream);
             }
             catch (Exception ex)
             {
-                ShowError($"Не вдалося підключитися до сервера: {ex.Message}");
+                ShowError($"Помилка при вході: {ex.Message}");
                 return false;
             }
         }
 
-        private bool AttemptLogin(string username, string password)
+        private bool AttemptRegister(string username, string password, NetworkStream stream)
         {
-            var loginRequest = new Protocol.LoginRequest
+            try
             {
-                Username = username,
-                Password = password
-            };
+                var registerRequest = new Protocol.LoginRequest
+                {
+                    Username = username,
+                    Password = password
+                };
 
-            var message = new Protocol.NetworkMessage
+                var message = new Protocol.NetworkMessage
+                {
+                    Type = Protocol.MessageType.Register,
+                    Data = JsonSerializer.Serialize(registerRequest)
+                };
+
+                return SendAndWaitForResponse(message, false, stream);
+            }
+            catch (Exception ex)
             {
-                Type = Protocol.MessageType.Login,
-                Data = JsonSerializer.Serialize(loginRequest)
-            };
-
-            return SendAndWaitForResponse(message, true);
+                ShowError($"Помилка при реєстрації: {ex.Message}");
+                return false;
+            }
         }
 
-        private bool AttemptRegister(string username, string password)
-        {
-            var registerRequest = new Protocol.LoginRequest
-            {
-                Username = username,
-                Password = password
-            };
-
-            var message = new Protocol.NetworkMessage
-            {
-                Type = Protocol.MessageType.Register,
-                Data = JsonSerializer.Serialize(registerRequest)
-            };
-
-            return SendAndWaitForResponse(message, false);
-        }
-
-        private bool SendAndWaitForResponse(Protocol.NetworkMessage message, bool isLogin)
+        private bool SendAndWaitForResponse(Protocol.NetworkMessage message, bool isLogin, NetworkStream stream)
         {
             try
             {
@@ -147,83 +172,92 @@ namespace Team_Project_Chat
                 byte[] data = Encoding.UTF8.GetBytes(jsonData);
                 stream.Write(data, 0, data.Length);
 
-                byte[] buffer = new byte[1024];
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                string responseJson = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                byte[] buffer = new byte[4096];
 
-                var responseMessage = JsonSerializer.Deserialize<Protocol.NetworkMessage>(responseJson);
-                var loginResponse = JsonSerializer.Deserialize<Protocol.LoginResponse>(responseMessage.Data);
+                while (true)
+                {
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
 
-                if (loginResponse.Success)
-                {
-                    return true;
-                }
-                else
-                {
-                    if (isLogin && loginResponse.Message.Contains("облікові дані") || loginResponse.Message.Contains("credentials"))
+                    if (bytesRead == 0)
                     {
-                        ShowError("Неправильне ім'я користувача або пароль");
+                        ShowError("Сервер не відповідає");
+                        return false;
                     }
-                    else if (isLogin && loginResponse.Message.Contains("вже ввійшов") || loginResponse.Message.Contains("already logged"))
+
+                    string responseJson = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    var responseMessage = JsonSerializer.Deserialize<Protocol.NetworkMessage>(responseJson);
+
+                    if (responseMessage == null)
                     {
-                        ShowError("Користувач авторизований");
+                        ShowError("Некоректна відповідь від сервера");
+                        return false;
                     }
-                    else if (!isLogin && loginResponse.Message.Contains("існує") || loginResponse.Message.Contains("exists"))
+
+
+                    if ((isLogin && responseMessage.Type == Protocol.MessageType.Login) ||
+                        (!isLogin && responseMessage.Type == Protocol.MessageType.Register))
                     {
-                        ShowError("Користувач з таким іменем вже існує");
+                        var loginResponse = JsonSerializer.Deserialize<Protocol.LoginResponse>(responseMessage.Data);
+
+                        if (loginResponse == null)
+                        {
+                            ShowError("Некоректні дані відповіді");
+                            return false;
+                        }
+
+                        if (loginResponse.Success)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            string errorMessage = loginResponse.Message ?? "Невідома помилка";
+                            ShowError(errorMessage);
+                            return false;
+                        }
+                    }
+
+                    else if (responseMessage.Type == Protocol.MessageType.UserList)
+                    {
+
+                        continue;
                     }
                     else
                     {
-                        ShowError(loginResponse.Message);
+                        ShowError($"Неочікувана відповідь від сервера: {responseMessage.Type}");
+                        return false;
                     }
-                    return false;
                 }
             }
             catch (Exception ex)
             {
-                ShowError($"Помилка зв'язку с сервером: {ex.Message}");
+                ShowError($"Помилка зв'язку з сервером: {ex.Message}");
                 return false;
             }
         }
 
         private void ShowError(string message)
         {
-            lbl_error.Text = message;
+            if (lbl_error.InvokeRequired)
+            {
+                lbl_error.Invoke(new Action(() => lbl_error.Text = message));
+            }
+            else
+            {
+                lbl_error.Text = message;
+            }
         }
 
         private void ClearErrorMessage()
         {
-            lbl_error.Text = "";
-        }
-
-        private void CloseConnection()
-        {
-            try
+            if (lbl_error.InvokeRequired)
             {
-                stream?.Close();
-                client?.Close();
+                lbl_error.Invoke(new Action(() => lbl_error.Text = ""));
             }
-            catch { }
-            finally
+            else
             {
-                stream = null;
-                client = null;
+                lbl_error.Text = "";
             }
-        }
-
-        public TcpClient GetClient()
-        {
-            return client;
-        }
-
-        public NetworkStream GetStream()
-        {
-            return stream;
-        }
-
-        public string GetUsername()
-        {
-            return loggedInUsername ?? tb_login.Text.Trim();
         }
 
         private void tb_password_KeyPress(object sender, KeyPressEventArgs e)

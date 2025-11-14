@@ -37,7 +37,7 @@
         public string Username { get; set; }
         public string Content { get; set; }
         public string Timestamp { get; set; }
-        public string Recipient { get; set; } // For private messages
+        public string Recipient { get; set; }
     }
 
     public class UserListResponse
